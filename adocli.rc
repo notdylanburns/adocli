@@ -1,0 +1,4 @@
+export CLI_SH='/usr/local/bin/cli.sh'
+export CLI_SH_ROOT_NAME='adocli'
+export CLI_SH_ROOT='/home/mk41/adocli'
+export CLI_SH_CMD='/home/mk41/adocli/cmd'

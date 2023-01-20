@@ -1,0 +1,52 @@
+#!/bin/bash
+
+source "$(dirname $(realpath $0))/adocli.rc"
+source "$CLI_SH"
+
+export CMD_DIR="${CLI_SH_ROOT}"
+export CMD_CALLED_AS="$(basename $0)"
+export CMD_NAME="$(basename $0)"
+
+export CMD_ARGS_FILE="${CMD_DIR}/${CMD_NAME}.args"
+export CMD_CHILD_DIR="$CLI_SH_CMD"
+export CMD_SUBCOMMAND_VAR='command'
+
+help() {
+    echo "${CMD_CALLED_AS}: a wrapper around the azure devops cli"
+    echo
+
+    usage
+    
+    echo
+    print_child_commands
+}
+
+main() {
+    if cmd=$(find_child_command) ; then
+        export CMD_CALLED_AS="${CMD_CALLED_AS} ${!CMD_SUBCOMMAND_VAR}"
+        export CMD_DIR="${CMD_CHILD_DIR}"
+        export CMD_NAME="${!CMD_SUBCOMMAND_VAR}"
+
+        $cmd ${remaining_args[@]}
+        
+        exit $?
+    elif [[ -n "$help" ]] ; then
+        help
+        exit 0
+    elif ! (exit $args_valid) ; then
+        print_args_errors
+        exit 1
+    fi
+
+    2>&1 echo -e "error: unknown subcommand: ${!CMD_SUBCOMMAND_VAR}\n"
+    
+    2>&1 usage
+    2>&1 echo
+    2>&1 print_child_commands
+    
+}
+
+parse_args $@
+args_valid="$?"
+
+main

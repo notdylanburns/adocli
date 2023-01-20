@@ -1,0 +1,4 @@
+command:true::::subcomand to run
+help:false:-h:--help:0:show help for this command
+organization:false:-O:--organization:1:set the ado organization to use
+project:false:-P:--project:1:set the ado project to use
