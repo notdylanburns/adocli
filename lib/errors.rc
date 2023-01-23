@@ -1,0 +1,36 @@
+export NO_ERROR=0
+export ARGUMENT_ERROR=1
+
+export NO_SUCH_CACHE_ENTRY_ERROR=30
+export CACHE_ENTRY_EXPIRED_ERROR=31
+export INVALID_CACHE_PATH_ERROR=32
+export INVALID_CACHE_TTL_FILE_ERROR=33
+export NO_SUCH_CACHE_TTL_ERROR=34
+export CACHE_ENTRY_IS_DIRECTORY_ERROR=35
+
+strerror() {
+    e="$1"
+    case "$e" in
+        $NO_ERROR)                          echo "success" ;;
+        $ARGUMENT_ERROR)                    echo "invalid argument" ;;
+        $NO_SUCH_CACHE_ENTRY_ERROR)         echo "no such cache entry" ;;
+        $CACHE_ENTRY_EXPIRED_ERROR)         echo "cache entry has expired" ;;
+        $INVALID_CACHE_PATH_ERROR)          echo "invalid cache path" ;;
+        $INVALID_CACHE_TTL_FILE_ERROR)      echo "invalid cache ttl file" ;;
+        $NO_SUCH_CACHE_TTL_ERROR)           echo "no such cache ttl entry" ;;
+        $CACHE_ENTRY_IS_DIRECTORY_ERROR)    echo "cache entry is a directory" ;;
+        *)                                  echo "unknown error with code $e" ;;
+    esac
+}
+
+perror() {
+    prefix="$1"
+    error="$2"
+
+    if [[ "$error" == "$NO_ERROR" ]] ; then
+        return $NO_ERROR
+    fi
+
+    2>&1 echo "${prefix}: $(strerror $error)"
+    return $error
+}

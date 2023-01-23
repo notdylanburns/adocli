@@ -1,0 +1,172 @@
+import errors
+import utils
+
+validate_cache_path() {
+    if [[ ! -d "$ADO_CACHE_PATH" ]] ; then
+        return $INVALID_CACHE_PATH_ERROR
+    fi
+
+    return $NO_ERROR
+}
+
+validate_cache_ttl_file() {
+    if [[ ! -f "$ADO_CACHE_TTL_PATH" ]] ; then
+        return $INVALID_CACHE_TTL_FILE_ERROR
+    fi
+
+    if grep -P -v '^[^:]+:([0-9]+)?$' "$ADO_CACHE_TTL_PATH" >/dev/null ; then
+        return $INVALID_CACHE_TTL_FILE_ERROR
+    fi
+
+    return $NO_ERROR
+}
+
+get_cache_ttl() {
+    local key="$1"
+
+    if ! get_exit_code 'validate_cache_ttl_file' ; then
+        return $_CODE
+    fi
+
+    if [[ -z "$key" ]] ; then
+        return $ARGUMENT_ERROR
+    fi
+
+    local sed_exprs=(
+        's#\*#.*#g'
+        's#{id}#[0-9]+#g'
+    )
+
+    local sed_string='sed '
+    for expr in ${sed_exprs[@]} ; do
+        sed_string+="-e ${expr} "
+    done
+
+    while read -r line ; do
+        local expr="$(echo "$line" | $sed_string)"
+        local key_pattern="$(echo "$line" | cut -d: -f1)"
+        local ttl="$(echo "$line" | cut -d: -f2)"
+        if echo "$key" | grep -P "$expr" >/dev/null ; then
+            echo $ttl
+            return $NO_ERROR
+        fi
+    done <<< $(cat "$ADO_CACHE_TTL_PATH")
+
+    return $NO_SUCH_CACHE_TTL_ERROR
+}
+
+set_cache_ttl() {
+    local key_pattern="$1"
+    local ttl="$2"
+
+    if ! get_exit_code 'validate_cache_ttl_file' ; then
+        return $_CODE
+    fi
+
+    if [[ -z "$key_pattern" ]] ; then
+        return $ARGUMENT_ERROR
+    fi
+
+    if ! get_exit_code "delete_cache_ttl '${key_pattern}'" ; then
+        return $_CODE
+    fi
+
+    echo "${key_pattern}:${ttl}" >> "$ADO_CACHE_TTL_PATH"
+}
+
+delete_cache_ttl() {
+    local key_pattern="$1"
+    
+    if ! get_exit_code 'validate_cache_ttl_file' ; then
+        return $_CODE
+    fi
+    
+    lines=$(grep -v "${key_pattern}:" "$ADO_CACHE_TTL_PATH")
+    echo "$lines" > "$ADO_CACHE_TTL_PATH"
+}
+
+read_cache() {
+    local key="$1"
+    
+    if ! get_exit_code "validate_cache_path" ; then
+        return $_CODE
+    fi
+    
+    ttl=$(get_cache_ttl "$key")
+    _CODE="$?"
+
+    eternal='false'
+    case "$_CODE" in
+        $NO_ERROR) eternal='true' ;;
+        $NO_SUCH_CACHE_TTL_ERROR) ttl="$ADO_CACHE_DEFAULT_TTL" ;;
+        *) return $_CODE
+    esac
+
+    full_path="${ADO_CACHE_PATH}/${key}"
+
+    if [[ -d "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+        echo -n "$(ls -a -I'.' -I'..' -w 1 "$full_path")"
+        return $NO_ERROR
+    elif [[ -f "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+        if $eternal ; then
+            echo -n "$(cat "$full_path")"
+            return $NO_ERROR
+        fi
+        updated_at=$(stat -c '%Y' "$full_path")
+        expiry=$((updated_at + ttl))
+        now=$(date '+%s')
+        
+        if [[ "$expiry" -gt "$now" ]] ; then
+            echo -n "$(cat "$full_path")"
+            return $NO_ERROR
+        fi
+
+        return $CACHE_ENTRY_EXPIRED_ERROR
+    fi
+
+    return $NO_SUCH_CACHE_ENTRY_ERROR
+}
+
+read_cache_force() {
+    local key="$1"
+    
+    if ! get_exit_code "validate_cache_path" ; then
+        return $_CODE
+    fi
+
+    full_path="${ADO_CACHE_PATH}/${key}"
+
+    if [[ -d "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+        echo -n "$(ls -a -I'.' -I'..' -w 1 "$full_path")"
+        return $NO_ERROR
+    elif [[ -f "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+        echo -n "$(cat "$full_path")"
+        return $NO_ERROR
+    fi
+
+    return $NO_SUCH_CACHE_ENTRY_ERROR
+}
+
+write_cache() {
+    local key="$1"
+    local value="$2"
+
+    if ! get_exit_code "validate_cache_path" ; then
+        return $_CODE
+    fi
+
+    if [[ -z "$key" ]] ; then
+        return $ARGUMENT_ERROR
+    fi
+
+    full_path="${ADO_CACHE_PATH}/${key}"
+
+    if [[ -d "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+        return $CACHE_ENTRY_IS_DIRECTORY_ERROR
+    elif [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+        echo -n "$value" > "$full_path"
+        return $NO_ERROR
+    fi
+
+    return $NO_SUCH_CACHE_ENTRY_ERROR
+}

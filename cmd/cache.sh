@@ -1,22 +1,17 @@
 #!/bin/bash
 
-source "$(dirname $(realpath $0))/adocli.rc"
 source "$CLI_SH"
 
-export CMD_DIR="${CLI_SH_ROOT}"
-export CMD_CALLED_AS="$(basename $0)"
-export CMD_NAME="$(basename $0)"
-
 export CMD_ARGS_FILE="${CMD_DIR}/${CMD_NAME}.args"
-export CMD_CHILD_DIR="$CLI_SH_CMD"
+export CMD_CHILD_DIR="${CMD_DIR}/${CMD_NAME}"
 export CMD_SUBCOMMAND_VAR='command'
 
 help() {
-    echo "${CMD_CALLED_AS}: a wrapper around the azure devops cli"
+    echo "${CMD_CALLED_AS}: your description here"
     echo
 
     usage
-    
+
     echo
     print_child_commands
 }

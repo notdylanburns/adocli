@@ -1,0 +1,5 @@
+get_exit_code() {
+    eval $1
+    _CODE=$?
+    return $_CODE
+}

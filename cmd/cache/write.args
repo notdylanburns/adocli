@@ -1,0 +1,2 @@
+cache-key:true::::key to read forom cache (defaults to '.', ie the root of the cache)
+cache-value:false::::value to write (defaults to '')

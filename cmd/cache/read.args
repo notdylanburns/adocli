@@ -1,0 +1,2 @@
+cache-key:false::::key to read forom cache (defaults to '.', ie the root of the cache)
+ignore_expiry:false:-f:--ignore-expiry:0:if specified, return the result regardless of ttl
