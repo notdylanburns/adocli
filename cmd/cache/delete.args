@@ -1,0 +1,2 @@
+cache-key:true::::cache key to delete
+recursive:false:-r:--recursive:0:recursively delete keys

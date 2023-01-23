@@ -88,6 +88,10 @@ delete_cache_ttl() {
 read_cache() {
     local key="$1"
     
+    if [[ -z "$key" ]] ; then
+        return $ARGUMENT_ERROR
+    fi
+
     if ! get_exit_code "validate_cache_path" ; then
         return $_CODE
     fi
@@ -104,10 +108,10 @@ read_cache() {
 
     full_path="${ADO_CACHE_PATH}/${key}"
 
-    if [[ -d "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+    if [[ -d "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
         echo -n "$(ls -a -I'.' -I'..' -w 1 "$full_path")"
         return $NO_ERROR
-    elif [[ -f "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+    elif [[ -f "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
         if $eternal ; then
             echo -n "$(cat "$full_path")"
             return $NO_ERROR
@@ -130,16 +134,20 @@ read_cache() {
 read_cache_force() {
     local key="$1"
     
+    if [[ -z "$key" ]] ; then
+        return $ARGUMENT_ERROR
+    fi
+
     if ! get_exit_code "validate_cache_path" ; then
         return $_CODE
     fi
 
     full_path="${ADO_CACHE_PATH}/${key}"
 
-    if [[ -d "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+    if [[ -d "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
         echo -n "$(ls -a -I'.' -I'..' -w 1 "$full_path")"
         return $NO_ERROR
-    elif [[ -f "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+    elif [[ -f "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
         echo -n "$(cat "$full_path")"
         return $NO_ERROR
     fi
@@ -151,20 +159,68 @@ write_cache() {
     local key="$1"
     local value="$2"
 
-    if ! get_exit_code "validate_cache_path" ; then
-        return $_CODE
-    fi
-
     if [[ -z "$key" ]] ; then
         return $ARGUMENT_ERROR
     fi
 
+    if ! get_exit_code "validate_cache_path" ; then
+        return $_CODE
+    fi
+
     full_path="${ADO_CACHE_PATH}/${key}"
 
-    if [[ -d "$full_path" ]] && [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+    if [[ -d "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
         return $CACHE_ENTRY_IS_DIRECTORY_ERROR
-    elif [[ "$(realpath "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+    elif [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}(/.*|$)$ ]] ; then
+        mkdir -p "$(dirname "$full_path")"
         echo -n "$value" > "$full_path"
+        return $NO_ERROR
+    fi
+
+    return $NO_SUCH_CACHE_ENTRY_ERROR
+}
+
+delete_from_cache() {
+    local key="$1"
+    
+    if [[ -z "$key" ]] ; then
+        return $ARGUMENT_ERROR
+    fi
+
+    if ! get_exit_code "validate_cache_path" ; then
+        return $_CODE
+    fi
+
+    full_path="${ADO_CACHE_PATH}/${key}"
+
+    if [[ -d "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}/.*$ ]] ; then
+        return $CACHE_ENTRY_IS_DIRECTORY_ERROR
+    elif [[ -f "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}/.*$ ]] ; then
+        rm -f "$full_path"
+        return $NO_ERROR
+    fi
+
+    return $NO_SUCH_CACHE_ENTRY_ERROR
+}
+
+delete_from_cache_recursively() {
+    local key="$1"
+    
+    if [[ -z "$key" ]] ; then
+        return $ARGUMENT_ERROR
+    fi
+
+    if ! get_exit_code "validate_cache_path" ; then
+        return $_CODE
+    fi
+
+    full_path="${ADO_CACHE_PATH}/${key}"
+
+    if [[ -d "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}/.*$ ]] ; then
+        rm -rf "$full_path"
+        return $NO_ERROR
+    elif [[ -f "$full_path" ]] && [[ "$(realpath -m "$full_path")" =~ ^${ADO_CACHE_PATH}/.*$ ]] ; then
+        rm -f "$full_path"
         return $NO_ERROR
     fi
 
